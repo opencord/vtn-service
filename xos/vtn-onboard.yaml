@@ -26,7 +26,7 @@ topology_template:
     servicecontroller#vtn:
       type: tosca.nodes.ServiceController
       properties:
-          base_url: file:///opt/xos_services/vtn/xos/
+          base_url: file:///opt/xos_services/vtn-service/xos/
           # The following will concatenate with base_url automatically, if
           # base_url is non-null.
           xproto: ./
