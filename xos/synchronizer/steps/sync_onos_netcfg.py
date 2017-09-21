@@ -20,6 +20,7 @@ import socket
 import sys
 import base64
 import json
+from synchronizers.new_base.syncstep import DeferredException
 from synchronizers.new_base.syncstep import SyncStep
 from synchronizers.new_base.modelaccessor import *
 from xos.logger import Logger, logging
@@ -170,6 +171,9 @@ class SyncONOSNetcfg(SyncStep):
                 pass
 
             data["apps"]["org.opencord.vtn"]["cordvtn"]["nodes"].append(node_dict)
+
+        if not (data["apps"]["org.opencord.vtn"]["cordvtn"]["nodes"]):
+            raise DeferredException("Waiting for there to be valid nodes")
 
         # Generate apps->org.onosproject.cordvtn->cordvtn->publicGateways
         # Pull the gateway information from Address Pool objects
