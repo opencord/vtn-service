@@ -43,12 +43,6 @@ class SyncONOSNetcfg(SyncStep):
         if (type(o) is AddressPool): # For public gateways
             self.call()
 
-    def get_node_tag(self, node, tagname):
-        tags = Tag.objects.filter(content_type=model_accessor.get_content_type_id(node),
-                                  object_id=node.id,
-                                  name=tagname)
-        return tags[0].value
-
     def get_service_instances_who_want_config(self):
         service_instances = []
         # attribute is comma-separated list
@@ -140,6 +134,7 @@ class SyncONOSNetcfg(SyncStep):
 
         # Generate apps->org.opencord.vtn->cordvtn->nodes
         nodes = Node.objects.all()
+
         for node in nodes:
             try:
                 nodeip = socket.gethostbyname(node.name)
@@ -149,9 +144,9 @@ class SyncONOSNetcfg(SyncStep):
                 continue
 
             try:
-                bridgeId = self.get_node_tag(node, "bridgeId")
-                dataPlaneIntf = self.get_node_tag(node, "dataPlaneIntf")
-                dataPlaneIp = self.get_node_tag(node, "dataPlaneIp")
+                bridgeId = node.bridgeId
+                dataPlaneIntf = node.dataPlaneIntf
+                dataPlaneIp = node.dataPlaneIp
             except:
                 logger.error("not adding node %s to the VTN configuration" % node.name)
                 continue
@@ -166,8 +161,8 @@ class SyncONOSNetcfg(SyncStep):
 
             # this one is optional
             try:
-                node_dict["hostManagementIface"] = self.get_node_tag(node, "hostManagementIface")
-            except IndexError:
+                node_dict["hostManagementIface"] = node.hostManagementIface
+            except AttributeError:
                 pass
 
             data["apps"]["org.opencord.vtn"]["cordvtn"]["nodes"].append(node_dict)
