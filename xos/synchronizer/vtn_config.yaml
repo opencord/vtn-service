@@ -14,10 +14,21 @@
 # limitations under the License.
 
 
-name: vtn-synchronizer
+name: vtn
 accessor:
   username: xosadmin@opencord.org
   password: "@/opt/xos/services/vtn/credentials/xosadmin@opencord.org"
+required_models:
+  - AddressPool
+  - Controller
+  - Network
+  - Node
+  - Port
+  - Service
+  - ServiceInstance
+  - Tag
+  - VTNService
 dependency_graph: "/opt/xos/synchronizers/vtn/model-deps"
 steps_dir: "/opt/xos/synchronizers/vtn/steps"
 sys_dir: "/opt/xos/synchronizers/vtn/sys"
+models_dir: "/opt/xos/synchronizers/vtn/models"
