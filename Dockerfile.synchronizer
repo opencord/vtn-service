@@ -13,14 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This Dockerfile is DEPRECATED and will be removed imminently.
 
 # xosproject/vtn-synchronizer
 FROM xosproject/xos-synchronizer-base:candidate
 
-COPY . /opt/xos/synchronizers/vtn
-
-COPY __init__.py /opt/xos/services/__init__.py
+COPY xos/synchronizer /opt/xos/synchronizers/vtn
+COPY VERSION /opt/xos/synchronizers/vtn/
 
 ENTRYPOINT []
 
