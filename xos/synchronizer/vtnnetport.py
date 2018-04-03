@@ -225,7 +225,7 @@ class VTNPort(object):
 
         if not self.is_access_network():
             # If not an access network, do not apply any tags
-            return []
+            return None
 
         if not self.xos_port.instance:
             return None
@@ -264,7 +264,10 @@ class VTNPort(object):
 
     @property
     def name(self):
-        return "port-%s" % self.xos_port.id
+        # In OpenStack Kilo, the tap name uses the first 11 characters of the port id. Unverified if this is true for
+        # any other OpenStack.
+        return "tap" + self.xos_port.port_id[:11]
+        #return self.xos_port.name
 
     @property
     def network_id(self):

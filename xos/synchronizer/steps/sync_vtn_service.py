@@ -22,10 +22,13 @@ import base64
 from synchronizers.vtn.vtnnetport import VTNNetwork, VTNPort
 from synchronizers.new_base.syncstep import SyncStep
 from synchronizers.new_base.modelaccessor import *
-from xos.logger import Logger, logging
 from requests.auth import HTTPBasicAuth
 
-logger = Logger(level=logging.INFO)
+from xosconfig import Config
+from multistructlog import create_logger
+
+log = create_logger(Config().get('logging'))
+
 
 # XXX should save and load this
 glo_saved_networks = {}
@@ -47,14 +50,14 @@ class SyncVTNService(SyncStep):
                 continue
 
             # TODO: Rather than checking model name, check for the right interface
-            # NOTE: Deferred until new Tosca engine is in place.
+            # NOTE: Deferred until service interfaces are revisited
 
             #if not link.provider_service_interface:
-            #    logger.warning("Link %s does not have a provider_service_interface. Skipping" % link)
+            #    log.warning("Link %s does not have a provider_service_interface. Skipping" % link)
             #    continue
             #
             #if link.provider_service_interface.interface_type.name != "onos_app_interface":
-            #    logger.warning("Link %s provider_service_interface type is not equal to onos_app_interface" % link)
+            #    log.warning("Link %s provider_service_interface type is not equal to onos_app_interface" % link)
             #    continue
 
             # cast from ServiceInstance to ONOSApp
@@ -104,48 +107,55 @@ class SyncVTNService(SyncStep):
             network = VTNNetwork(network)
 
             if not network.id:
+                log.info("Skipping network because it has no id")
                 continue
 
-            if (network.type=="PRIVATE") and (not network.providerNetworks):
-                logger.info("Skipping network %s because it has no relevant state" % network.id)
+            if (not network.subnet):
+                log.info("Skipping network %s because it has no subnet" % network.id)
+                continue
+
+            if (not network.segmentation_id):
+                log.info("Skipping network %s because it has no segmentation id" % network.id)
                 continue
 
             valid_ids.append(network.id)
 
-            if (glo_saved_networks.get(network.id, None) != network.to_dict()):
+            # clean the providerNetworks list to what the VTN App expects
+            providerNetworks = [{"id": x["id"], "bidirectional": x["bidirectional"]} for x in network.providerNetworks]
+
+            # This is the data we will be sending ONOS
+            data = {"ServiceNetwork": {"id": network.id,
+                                       "name": network.name,
+                                       "type": network.type,
+                                       "segment_id": network.segmentation_id,
+                                       "subnet": network.subnet,
+                                       "service_ip": network.gateway,
+                                       "providerNetworks": providerNetworks}}
+
+            if (glo_saved_networks.get(network.id, None) != data):
                 (exists, url, method, req_func) = self.get_method(onos_auth, "http://%s:%d/onos/cordvtn/serviceNetworks" % (onos_hostname, onos_port), network.id)
 
-                logger.info("%sing VTN API for network %s" % (method, network.id))
-
-                logger.info("URL: %s" % url)
-
-                # clean the providerNetworks list
-                providerNetworks = [{"id": x["id"], "bidirectional": x["bidirectional"]} for x in network.providerNetworks]
-
-                data = {"ServiceNetwork": {"id": network.id,
-                        "type": network.type,
-                        "providerNetworks": providerNetworks} }
-                logger.info("DATA: %s" % str(data))
+                log.info("%sing VTN API for network %s" % (method, network.id), url=url, data=data)
 
                 r=req_func(url, json=data, auth=onos_auth )
                 if (r.status_code in [200,201]):
-                    glo_saved_networks[network.id] = network.to_dict()
+                    glo_saved_networks[network.id] = data
                 else:
-                    logger.error("Received error from vtn service (%d)" % r.status_code)
+                    log.error("Received error from vtn service (%d)" % r.status_code)
 
 
         for network_id in glo_saved_networks.keys():
             if network_id not in valid_ids:
-                logger.info("DELETEing VTN API for network %s" % network_id)
+                log.info("DELETEing VTN API for network %s" % network_id)
 
                 url = "http://%s:%d/onos/cordvtn/serviceNetworks/%s" % (onos_hostname, onos_port, network_id)
-                logger.info("URL: %s" % url)
+                log.info("URL: %s" % url)
 
                 r = requests.delete(url, auth=onos_auth )
                 if (r.status_code in [200,204]):
                     del glo_saved_networks[network_id]
                 else:
-                    logger.error("Received error from vtn service (%d)" % r.status_code)
+                    log.error("Received error from vtn service (%d)" % r.status_code)
 
     def sync_service_ports(self, vtn_service):
         (onos_hostname, onos_port, onos_auth) = self.get_vtn_endpoint(vtn_service)
@@ -155,44 +165,56 @@ class SyncVTNService(SyncStep):
             port = VTNPort(port)
 
             if not port.id:
+                log.info("Skipping port because it has no id")
                 continue
 
-            if (not port.vlan_id) and (not port.floating_address_pairs):
-                logger.info("Skipping port %s because it has no relevant state" % port.id)
+            if (not port.network_id):
+                log.info("Skipping port %s because it is missing network_id" % port.id)
+                continue
+
+            if (not port.mac_address):
+                log.info("Skipping port %s because it is missing mac_address" % port.id)
+                continue
+
+            if (not port.ip_address):
+                log.info("Skipping port %s because it is missing ip_address" % port.id)
                 continue
 
             valid_ids.append(port.id)
 
-            if (glo_saved_ports.get(port.id, None) != port.to_dict()):
+            # This is the data we will be sending ONOS
+            data = {"ServicePort": {"id": port.id,
+                                    "name": port.name,
+                                    "network_id": port.network_id,
+                                    "mac_address": port.mac_address,
+                                    "ip_address": port.ip_address,
+                                    "floating_address_pairs": port.floating_address_pairs}}
+            if port.vlan_id:
+                data["ServicePort"]["vlan_id"] = port.vlan_id
+
+            if (glo_saved_ports.get(port.id, None) != data):
                 (exists, url, method, req_func) = self.get_method(onos_auth, "http://%s:%d/onos/cordvtn/servicePorts" % (onos_hostname, onos_port), port.id)
 
-                logger.info("%sing VTN API for port %s" % (method, port.id))
-
-                logger.info("URL: %s" % url)
-
-                data = {"ServicePort": {"id": port.id,
-                        "vlan_id": port.vlan_id,
-                        "floating_address_pairs": port.floating_address_pairs} }
-                logger.info("DATA: %s" % str(data))
+                log.info("%sing VTN API for port %s" % (method, port.id), url=url, data=data)
 
                 r=req_func(url, json=data, auth=onos_auth )
                 if (r.status_code in [200,201]):
-                    glo_saved_ports[port.id] = port.to_dict()
+                    glo_saved_ports[port.id] = data
                 else:
-                    logger.error("Received error from vtn service (%d)" % r.status_code)
+                    log.error("Received error from vtn service (%d)" % r.status_code)
 
         for port_id in glo_saved_ports.keys():
             if port_id not in valid_ids:
-                logger.info("DELETEing VTN API for port %s" % port_id)
+                log.info("DELETEing VTN API for port %s" % port_id)
 
                 url = "http://%s:%d/onos/cordvtn/servicePorts/%s" % (onos_hostname, onos_port, port_id)
-                logger.info("URL: %s" % url)
+                log.info("URL: %s" % url)
 
                 r = requests.delete(url, auth=onos_auth )
                 if (r.status_code in [200,204]):
                     del glo_saved_ports[port_id]
                 else:
-                    logger.error("Received error from vtn service (%d)" % r.status_code)
+                    log.error("Received error from vtn service (%d)" % r.status_code)
 
     def call(self, **args):
         global glo_saved_networks
@@ -218,7 +240,6 @@ class SyncVTNService(SyncStep):
 
         if vtn_service.vtnAPIVersion>=2:
             # version 2 means use new API
-            logger.info("Using New API")
             self.sync_service_networks(vtn_service)
             self.sync_service_ports(vtn_service)
         else:
