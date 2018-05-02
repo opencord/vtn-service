@@ -1,5 +1,6 @@
 option kind = "VTN";
 option name = "vtn";
+option app_label = "vtn";
 
 message VTNService (Service){
      option verbose_name = "VTN Service";
