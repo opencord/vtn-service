@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 # Copyright 2017-present Open Networking Foundation
 #
@@ -12,9 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
-#!/usr/bin/env python
 
 # This imports and runs ../../xos-observer.py
 
@@ -32,4 +30,3 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "xos.settings")
 
 mod = importlib.import_module("synchronizers.new_base.xos-synchronizer")
 mod.main()
-
