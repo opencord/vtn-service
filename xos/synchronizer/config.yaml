@@ -15,9 +15,6 @@
 
 
 name: vtn
-accessor:
-  username: xosadmin@opencord.org
-  password: "@/opt/xos/services/vtn/credentials/xosadmin@opencord.org"
 required_models:
   - AddressPool
   - Controller
@@ -32,3 +29,13 @@ dependency_graph: "/opt/xos/synchronizers/vtn/model-deps"
 steps_dir: "/opt/xos/synchronizers/vtn/steps"
 sys_dir: "/opt/xos/synchronizers/vtn/sys"
 models_dir: "/opt/xos/synchronizers/vtn/models"
+logging:
+  version: 1
+  handlers:
+    console:
+      class: logging.StreamHandler
+  loggers:
+    'multistructlog':
+      handlers:
+          - console
+      level: DEBUG
