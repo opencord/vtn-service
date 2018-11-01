@@ -16,7 +16,7 @@
 
 # xosproject/vtn-synchronizer
 
-FROM xosproject/xos-synchronizer-base:2.1.9
+FROM xosproject/xos-synchronizer-base:2.1.22
 
 COPY xos/synchronizer /opt/xos/synchronizers/vtn
 COPY VERSION /opt/xos/synchronizers/vtn/
