@@ -306,7 +306,7 @@ Example json request:
 
 ## Integration with other Services
 
-Two of CORD's [core models](core_models.md) play a role in service composition,
+Two of CORD's core models play a role in service composition,
 and hence, in the XOS/VTN interaction.
 
 The first is the *ServiceDependency* model, which defines an edge in the
